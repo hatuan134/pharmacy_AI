@@ -15,3 +15,15 @@ body{background:radial-gradient(circle at 85% 0,#e7f7ef 0,transparent 30%),var(-
 @media(max-width:1250px){.sidebar{width:220px}.main-shell{margin-left:220px}.ai-trust-row{grid-template-columns:1fr 1fr 1fr}}
 @media(max-width:900px){.main-shell{margin-left:0}.topbar-right .top-date{display:none}.ai-trust-row{grid-template-columns:1fr}.chat-bubble{max-width:90%}}
 @media(max-width:680px){.chat-body{padding:18px 12px;min-height:380px}.chat-bubble{max-width:94%}.chat-suggestions{overflow:auto;flex-wrap:nowrap}.chat-suggestions button{white-space:nowrap}.topbar-right .badge{display:none}}
+
+/* Render Markdown an toàn cho câu trả lời AI */
+.chat-text{white-space:normal}
+.chat-text p{margin:0 0 8px}
+.chat-text p:last-child{margin-bottom:0}
+.chat-text ol,.chat-text ul{margin:6px 0 8px 20px;padding:0}
+.chat-text li{margin:4px 0}
+.chat-text strong{font-weight:750;color:inherit}
+.chat-text em{font-style:italic}
+.chat-text code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f0f5f2;border-radius:5px;padding:1px 4px;font-size:.92em}
+.chat-text .md-heading{font-weight:750;margin:7px 0 5px}
+.chat-text .md-gap{height:7px}
