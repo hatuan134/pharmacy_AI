@@ -664,6 +664,45 @@ def plan_chat(request, user):
         plan = ChatPlan.model_validate_json(output)
         allowed_set = set(allowed)
         plan.calls = [c for c in plan.calls if c.name in allowed_set][:4]
+
+        # Deterministic safety net for clear operational intents. Gemini is still
+        # the primary router, but it must not be allowed to return a syntactically
+        # valid empty/wrong plan for questions that have an obvious backend tool.
+        # This is especially important for expiry/inventory questions where the
+        # answer must come from PostgreSQL, not from the model's guess.
+        q = plain(request.message)
+        fallback = _fallback_chat_plan(request.message, user.role)
+        must_have = set()
+        if re.search(r'het han|sap het han|han dung|con .*ngay', q):
+            must_have.add('expiry_alerts')
+        if re.search(r'ton thap|sap het hang|duoi nguong|low stock', q):
+            must_have.add('low_stock')
+        if re.search(r'ton kho|con bao nhieu|so luong|lo nao|gia ban', q):
+            must_have.add('inventory_search')
+        if re.search(r'quy trinh|kiem ke|nhap lo|xu ly|thao tac', q):
+            must_have.add('procedures')
+        if re.search(r'internet|ben ngoai|pubmed|openfda|dailymed|nghien cuu|moi nhat|nguon cong khai', q):
+            must_have.add('public_drug_sources')
+        if user.role in ('manager', 'pharmacist') and re.search(r'ban cham|ton nhieu|nguy co|luan chuyen|tieu thu|slow moving|risk', q):
+            must_have.add('stock_risk')
+        if user.role == 'manager' and re.search(r'doanh thu|tien ban|bao cao ban|hoa don.*(thang|ngay|hom nay)|sales|revenue', q):
+            must_have.add('sales_summary')
+        if user.role == 'manager' and re.search(r'audit|nhat ky|ai sua|ai thay doi|lich su thao tac|nhan vien', q):
+            must_have.add('audit_summary')
+
+        existing = {c.name for c in plan.calls}
+        for c in fallback.calls:
+            if c.name in must_have and c.name in allowed_set and c.name not in existing:
+                plan.calls.insert(0, c)
+                existing.add(c.name)
+
+        # A valid JSON response with no tool calls is still unusable for this
+        # assistant. Fall back to the deterministic router instead of sending an
+        # empty TOOL_RESULTS payload to Gemini.
+        if not plan.calls and not plan.access_denied and not plan.unsafe:
+            return fallback
+
+        plan.calls = plan.calls[:4]
         return plan
     except (GeminiAPIError, GeminiRateLimitError, GeminiAuthError, ValueError, json.JSONDecodeError, httpx.RequestError):
         return _fallback_chat_plan(request.message, user.role)
